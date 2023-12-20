@@ -1,0 +1,97 @@
+version: '3'
+services:
+  traefik:
+    image: traefik:v2.5
+    container_name: traefik
+    ports:
+      - "80:80"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # Connect to Docker socket
+      - ./traefik-logs:/var/log/traefik/
+    command:
+      - "--accesslog=true"
+      - "--accesslog.filepath=/var/log/traefik/access.log"
+      - "--accesslog.format=json"
+      - "--api.insecure=true"  # Enable the insecure dashboard for simplicity
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - internal_network
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus/:/etc/prometheus/
+      - ./tmp/prometheus:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.size=256MB'
+    labels:
+      - "traefik.enable=false"
+      - "traefik.http.routers.prometheus.service=prometheus"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - internal_network
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    volumes:
+      - ./grafana/:/etc/grafana/
+      - ./tmp/grafana:/var/lib/grafana
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.localhost`)"
+      - "traefik.http.routers.grafana.service=grafana"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin  # Change this to your desired Grafana admin username
+      - GF_SECURITY_ADMIN_PASSWORD=admin_password  # Change this to your desired Grafana admin password
+      - GF_USERS_ALLOW_SIGN_UP=false  # Disable sign-up
+    networks:
+      - internal_network
+
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    volumes:
+      - ./telegraf/:/etc/telegraf/
+      - ./traefik-logs:/var/log/traefik/ # Mount Traefik logs to get metrics 
+    restart: unless-stopped
+    networks:
+      - internal_network
+    labels:
+      - "traefik.enable=false" 
+      - "traefik.http.routers.telegraf.service=telegraf"
+      - "traefik.http.services.telegraf.loadbalancer.server.port=9273"
+
+  hello-world:
+    image: nginx
+    container_name: hello-world
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hello.rule=Host(`localhost`)"  # Access via localhost
+      - "traefik.http.services.hello.loadbalancer.server.port=80"
+    restart: unless-stopped
+    networks:
+      - internal_network
+
+networks:
+  internal_network:
