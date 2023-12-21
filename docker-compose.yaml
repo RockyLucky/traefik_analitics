@@ -57,14 +57,14 @@ services:
       - ./tmp/grafana:/var/lib/grafana
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.localhost`)"
+      - "traefik.http.routers.grafana.rule=Host(`${Grafana_domain}`)"  # Access via domain name
       - "traefik.http.routers.grafana.service=grafana"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     restart: unless-stopped
     environment:
-      - GF_SECURITY_ADMIN_USER=admin  # Change this to your desired Grafana admin username
-      - GF_SECURITY_ADMIN_PASSWORD=admin_password  # Change this to your desired Grafana admin password
-      - GF_USERS_ALLOW_SIGN_UP=false  # Disable sign-up
+      - GF_SECURITY_ADMIN_USER=${Grafana_admin_user}
+      - GF_SECURITY_ADMIN_PASSWORD=${Grafana_admin_password}
+      - GF_USERS_ALLOW_SIGN_UP=${Grafana_allow_sign_up}
     networks:
       - internal_network
 
@@ -82,14 +82,39 @@ services:
       - "traefik.http.routers.telegraf.service=telegraf"
       - "traefik.http.services.telegraf.loadbalancer.server.port=9273"
 
-  hello-world:
-    image: nginx
-    container_name: hello-world
+  lychee:
+    container_name: lychee
+    image: lycheeorg/lychee
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MariaDB_root_password}
+      - LYCHEE_DATABASE=${lychee_db_name}
+      - LYCHEE_USERNAME=${lychee_db_user}
+      - LYCHEE_PASSWORD=${lychee_db_password}
+    volumes:
+      - ./lychee/uploads:/var/www/html/uploads
+      - ./lychee/data:/var/www/html/data
+    networks:
+      - internal_network
+    depends_on:
+      - lychee_db
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.hello.rule=Host(`localhost`)"  # Access via localhost
-      - "traefik.http.services.hello.loadbalancer.server.port=80"
+      - "traefik.http.routers.lychee.rule=Host(`${Lychee_domain}`)"  # Access via domain name
+      - "traefik.http.routers.lychee.service=lychee"
+      - "traefik.http.services.lychee.loadbalancer.server.port=80"
+
+  lychee_db:
+    container_name: lychee_db
+    image: mariadb:10
     restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MariaDB_root_password}
+      - MYSQL_DATABASE=${lychee_db_name}
+      - MYSQL_USER=${lychee_db_user}
+      - MYSQL_PASSWORD=${lychee_db_password}
+    volumes:
+      - ./mysql_data:/var/lib/mysql
     networks:
       - internal_network
 

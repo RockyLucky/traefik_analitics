@@ -23,6 +23,11 @@
 .DS_Store
 Thumbs.db
 
-# Ignore grafana and prometheus
+# Ignore grafana, prometheus, mysql, lychee files
 /tmp/grafana/*
 /tmp/prometheus/*
+/mysql/*
+/lychee/*
+
+# Ignore .env files
+.env
