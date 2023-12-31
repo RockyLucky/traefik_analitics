@@ -1,7 +1,7 @@
 version: '3'
 services:
   traefik:
-    image: traefik:v2.5
+    image: traefik:latest
     container_name: traefik
     ports:
       - "80:80"
@@ -87,22 +87,25 @@ services:
     image: lycheeorg/lychee
     restart: unless-stopped
     environment:
-      - MYSQL_ROOT_PASSWORD=${MariaDB_root_password}
-      - LYCHEE_DATABASE=${lychee_db_name}
-      - LYCHEE_USERNAME=${lychee_db_user}
-      - LYCHEE_PASSWORD=${lychee_db_password}
+      - DB_CONNECTION=mysql
+      - DB_HOST=lychee_db
+      - DB_PORT=3306
+      - DB_DATABASE=lychee
+      - DB_USERNAME=lychee
+      - DB_PASSWORD=${lychee_db_password}
+      - STARTUP_DELAY=30
     volumes:
-      - ./lychee/uploads:/var/www/html/uploads
-      - ./lychee/data:/var/www/html/data
+      - ./lychee/uploads:/uploads
+      - ./lychee/sym:/sym
+      - ./lychee/conf:/conf
+      - ./lychee/dist:/var/www/html/Lychee/dist
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.lychee.rule=Host(`localhost`)"
     networks:
       - internal_network
     depends_on:
       - lychee_db
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.lychee.rule=Host(`${Lychee_domain}`)"  # Access via domain name
-      - "traefik.http.routers.lychee.service=lychee"
-      - "traefik.http.services.lychee.loadbalancer.server.port=80"
 
   lychee_db:
     container_name: lychee_db
@@ -110,13 +113,16 @@ services:
     restart: unless-stopped
     environment:
       - MYSQL_ROOT_PASSWORD=${MariaDB_root_password}
-      - MYSQL_DATABASE=${lychee_db_name}
-      - MYSQL_USER=${lychee_db_user}
+      - MYSQL_DATABASE=lychee
+      - MYSQL_USER=lychee
       - MYSQL_PASSWORD=${lychee_db_password}
     volumes:
-      - ./mysql_data:/var/lib/mysql
+      - mysql:/var/lib/mysql
     networks:
       - internal_network
 
 networks:
   internal_network:
+
+volumes:
+  mysql:

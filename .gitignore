@@ -26,7 +26,6 @@ Thumbs.db
 # Ignore grafana, prometheus, mysql, lychee files
 /tmp/grafana/*
 /tmp/prometheus/*
-/mysql/*
 /lychee/*
 
 # Ignore .env files
